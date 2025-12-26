@@ -21,9 +21,13 @@
 # This file is the “language” that the frontend and backend share.
 # ------------------------------------------------------------
 
+"""Pydantic models and in-memory preference store for the ISweep backend."""
+
 from enum import Enum
+from typing import List, Optional
+
 from pydantic import BaseModel
-from typing import Optional, List
+
 
 
 # ------------------------------------------------------------
@@ -150,7 +154,7 @@ class Event(BaseModel):
     manual_override: bool = False
     # Allows future override controls (user-skip button, etc.)
     # Not used yet but builds toward full remote-control logic.
-    """
+    
 
 
 # ------------------------------------------------------------
@@ -289,8 +293,9 @@ def _infer_content_type_from_text(event: Event) -> None:
 
     lowered = event.text.lower()
 
+   
     # Search all preferences belonging to this user
-    for (user_id, ctype), pref in _preferences.items():
+    for (user_id, _), pref in _preferences.items():
         if user_id != event.user_id:
             continue
 

@@ -1,31 +1,42 @@
 # app/main.py
 # -------------------------------------------------
 # This file creates the FastAPI backend server for ISweep.
-# The backend is the “AI brain” of the remote-control system.
 #
-# The frontend (browser extension, website demo, mobile app, TV app)
-# sends data TO this server:
-#   - user settings (/preferences)
-#   - detected text, subtitles, or scene events (/event)
+# 🧠 Think of this as the "AI brain" that reacts to what the
+#    video player is seeing/hearing.
 #
-# And this server replies WITH:
-#   - decisions: mute, skip, fast-forward, or none
+# The frontend (browser extension, YouTube overlay, TV app,
+# desktop app, or the Help demo page) sends information HERE.
 #
-# The frontend then applies these actions to the video player.
+# The backend then decides:
+#   - Should we mute the video?
+#   - Should we skip ahead?
+#   - Should we fast-forward?
+#   - Should we do nothing?
+#
+# ⚡ The frontend NEVER decides filtering behavior itself.
+#    It only follows the instructions returned from this backend.
+#
+# This keeps the logic centralized, predictable, and easy to update.
 # -------------------------------------------------
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Import your Pydantic models
-# Preference  = what the user wants (mute profanity, skip sexual content, etc.)
-# Event       = what the AI/player detected (subtitle line, timestamp, etc.)
-# DecisionResponse = what action ISweep decides to take on the video
+# We import the Pydantic data models used to validate incoming JSON.
+# These enforce correct data structure and types.
+#
+# Preference       → describes what the user WANTS filtered
+# Event            → describes what the frontend DETECTS
+# DecisionResponse → describes what the backend DECIDES
+#
+# These are the shared contract between backend and frontend.
 from .models import Preference, Event, DecisionResponse
 
-# The business logic lives in rules.py:
-#   - save_preference() stores user preferences in memory
-#   - decide() receives an Event and decides if action is needed
+# Import the decision engine.
+# rules.py contains:
+#   - save_preference()  → store user settings
+#   - decide()           → read an Event, output a filtering decision
 from . import rules
 
 
@@ -39,42 +50,49 @@ app = FastAPI(
 )
 
 # -------------------------------------------------
-# CORS Middleware
+# CORS Middleware — allows browser-based frontends to talk to backend
 # -------------------------------------------------
-# CORS = Cross-Origin Resource Sharing.
-# When your website or Chrome extension runs on:
-#   http://localhost:5500   (or)
-#   chrome-extension://...
+# WHY THIS IS CRITICAL:
+#   - A Chrome extension runs under a URL like:
+#         chrome-extension://abcd1234
 #
-# and it tries to call this backend at:
-#   http://127.0.0.1:8000
+#   - Your local HTML demo runs under:
+#         http://127.0.0.1:5500
 #
-# the browser normally blocks this (security rule).
+#   - Your backend runs at:
+#         http://127.0.0.1:8000
 #
-# This middleware allows your frontends to talk to this server.
+# Browsers *block* communication between different origins unless CORS allows it.
+#
+# This middleware tells the browser:
+#     "Yes, the ISweep backend ALLOWS requests from any page for now."
+#
+# Later, you can lock this down to only your extension or website.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # allow ANY origin during development
-                          # (later you may restrict to only your domain/extension)
+    allow_origins=["*"],   # ALL domains allowed during development
     allow_credentials=True,
-    allow_methods=["*"],  # allow all HTTP verbs: GET, POST, PUT, etc.
-    allow_headers=["*"],  # allow all header types
+    allow_methods=["*"],   # GET, POST, PUT, DELETE all allowed
+    allow_headers=["*"],   # Allow any headers
 )
 
 
 # -------------------------------------------------
 # HEALTH CHECK ENDPOINT
 # -------------------------------------------------
+# Why this matters:
+#   - Your extension can check if the backend is online.
+#   - Your Help page can verify the system is running.
+#   - You can test if your backend server booted successfully.
 @app.get("/health")
 def health_check():
     """
-    Simple endpoint to see if the server is running.
-    - Chrome extension frontend calls this at startup
-    - Help page demo can call this to verify backend link
-    - Useful for debugging
+    Simple endpoint to test backend connectivity.
 
-    Returns:
-      {"status": "ok", "message": "ISweep backend is alive"}
+    Helpful for:
+      - debugging
+      - ensuring server is live before sending events
+      - verifying that your browser extension found the backend
     """
     return {"status": "ok", "message": "ISweep backend is alive"}
 
@@ -82,36 +100,34 @@ def health_check():
 # -------------------------------------------------
 # USER PREFERENCE ENDPOINT
 # -------------------------------------------------
+# This receives user settings from the Settings page.
+#
+# Examples of preferences:
+#   - category: "language" → action: "mute" for 4 seconds
+#   - category: "sexual"   → action: "skip" for 30 seconds
+#   - category: "violence" → action: "fast_forward"
+#
+# The frontend POSTS a Preference object here to save rules.
 @app.post("/preferences")
 def set_preference(pref: Preference):
     """
-    This endpoint receives user preferences.
+    Stores or updates user filtering rules.
 
-    The frontend sends things like:
-    - The categories the user wants filtered (profanity, sexual, violence)
-    - What action to apply (mute, skip, fast-forward)
-    - How long (duration_seconds)
-    - Whether the preference is enabled
-    - A list of blocked_words (for text-based filtering)
+    FRONTEND CALLS THIS WHEN:
+      - A user checks/unchecks a filter category in Settings
+      - A user changes an action (mute/skip/FF)
+      - A user updates blocked words
+      - The app initializes default preferences on first run
 
-    The Preference model (in models.py) validates the data.
-    Then we forward the preference to rules.save_preference()
-    which stores it in an in-memory dictionary:
-        RULES[user_id][content_type] = Preference()
+    HOW THIS WORKS IN THE WHOLE PROGRAM:
 
-    Example JSON body sent from frontend:
-    {
-      "user_id": "user123",
-      "content_type": "language",
-      "action": "mute",
-      "duration_seconds": 5,
-      "enabled": true,
-      "blocked_words": ["badword", "dummy"]
-    }
+      Settings Page → JS → POST /preferences → rules.save_preference()
+      Then the next time /event is triggered:
+         rules.decide() uses these new preferences.
 
-    This endpoint is called:
-      - When the user changes Settings on the frontend
-      - When the app loads and syncs default preferences
+    That means:
+    - If the user disables profanity filtering, the backend will stop muting.
+    - If they increase skip duration, the backend will skip longer.
     """
     rules.save_preference(pref)
     return {"status": "saved", "preference": pref}
@@ -120,53 +136,54 @@ def set_preference(pref: Preference):
 # -------------------------------------------------
 # EVENT DECISION ENDPOINT
 # -------------------------------------------------
+# This is the MOST IMPORTANT endpoint.
+#
+# 🎥 It receives REAL-TIME content from the frontend:
+#      - subtitle text
+#      - speech-to-text results
+#      - timestamps
+#      - AI detection results
+#
+# After reading the Event, ISweep decides:
+#      "Do nothing"
+#      "Mute"
+#      "Skip ahead"
+#      "Fast forward"
+#
+# Then the frontend video player performs the action.
 @app.post("/event", response_model=DecisionResponse)
 def handle_event(event: Event):
     """
-    This endpoint receives REAL-TIME events from the frontend.
+    The frontend sends an Event object whenever it detects something.
 
-    The frontend (your Chrome extension or help-demo page) will send:
-    - "user_id"            → identify whose rules to apply
-    - "timestamp"          → where the video currently is
-    - "source"             → browser / TV / extension
-    - "text"               → subtitle line or detected transcript
-    - "content_type"       → sometimes pre-labeled (future)
-    - "confidence"         → probability score (future)
-    - "manual_override"    → not used yet
+    Event examples:
+      - Subtitle: "oh my god why did you do that?"
+      - Content model: {type: "violence", confidence: 0.88}
+      - User override: manual skip pressed
 
-    FASTAPI flows:
-    1. The JSON body is validated against the Event model.
-    2. The event is passed to rules.decide(event)
-    3. rules.decide():
-         - Looks up user preferences
-         - Checks event.text for blocked words
-         - Applies rules to decide action:
-             mute / skip / fast_forward / none
-         - Returns DecisionResponse
+    FLOW OF THIS FUNCTION:
 
-    That DecisionResponse is forwarded straight back to the frontend.
+      1. Input JSON gets converted into an Event model.
+      2. The backend passes it to rules.decide(event).
+      3. rules.decide():
+            • Looks up matching user preference
+            • Detects blocked words
+            • Considers content_type and confidence
+            • Builds a DecisionResponse
+      4. The decision is returned to the frontend.
 
-    Example JSON sent from frontend:
-    {
-      "user_id": "user123",
-      "timestamp": 120.5,
-      "source": "browser",
-      "text": "oh my god why did you do that",
-      "content_type": null,
-      "confidence": null
-    }
+    FRONTEND THEN:
+      - If action=“mute” → mutes video for X seconds
+      - If action=“skip” → jumps ahead
+      - If action=“fast_forward” → temporarily speeds playback
+      - If action=“none” → nothing happens
 
-    Example returned:
-    {
-      "action": "mute",
-      "duration_seconds": 4,
-      "show_icon": true,
-      "reason": "Blocked word: oh my god"
-    }
-
-    The frontend then executes the action on the video.
-    (Your JS mutes, fast-forwards, or skips.)
+    This is the full AI filtering loop.
     """
     decision = rules.decide(event)
     return decision
+
+
+# -------------------------------------------------
 # End of app/main.py
+# -------------------------------------------------
