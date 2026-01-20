@@ -47,8 +47,20 @@ app.add_middleware(
 
 
 # -------------------------------------------------
-# HEALTH CHECK
+# ROOT REDIRECT + HEALTH CHECK
 # -------------------------------------------------
+@app.get("/")
+def root() -> dict[str, Any]:
+    """Root endpoint - redirects to docs or returns status."""
+    return {
+        "status": "running",
+        "service": "ISweep Backend",
+        "version": "0.1.0",
+        "docs": "/docs",
+        "health": "/health"
+    }
+
+
 @app.get("/health")
 def health_check() -> dict[str, Any]:
     return {
