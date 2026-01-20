@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISweep Backend Diagnostics</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            margin-bottom: 1rem;
+            color: #60a5fa;
+        }
+        .test-section {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .test-item {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #0f172a;
+            border-radius: 6px;
+            border-left: 3px solid #64748b;
+        }
+        .test-item.loading {
+            border-left-color: #f59e0b;
+        }
+        .test-item.success {
+            border-left-color: #10b981;
+            background: #0a3622;
+        }
+        .test-item.error {
+            border-left-color: #ef4444;
+            background: #3c0f0f;
+        }
+        .test-label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #64748b;
+            border-top-color: #60a5fa;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .test-result {
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .status-badge.ok {
+            background: #10b981;
+            color: white;
+        }
+        .status-badge.error {
+            background: #ef4444;
+            color: white;
+        }
+        button {
+            background: #60a5fa;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #3b82f6;
+        }
+        .info {
+            background: #064e3b;
+            border-left: 3px solid #10b981;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 ISweep Backend Diagnostics</h1>
+        
+        <div class="info">
+            <strong>ℹ️ Tip:</strong> Make sure your backend is running:<br>
+            <code>python -m app --port 8001 --no-reload</code>
+        </div>
+
+        <div class="test-section">
+            <h2>Backend Tests</h2>
+            
+            <div id="testRoot" class="test-item loading">
+                <div class="test-label">
+                    <span class="spinner"></span>
+                    Root Endpoint
+                </div>
+                <div class="test-result">Testing http://127.0.0.1:8001/</div>
+            </div>
+
+            <div id="testHealth" class="test-item loading">
+                <div class="test-label">
+                    <span class="spinner"></span>
+                    Health Check
+                </div>
+                <div class="test-result">Testing http://127.0.0.1:8001/health</div>
+            </div>
+
+            <div id="testPrefs" class="test-item loading">
+                <div class="test-label">
+                    <span class="spinner"></span>
+                    Get Preferences
+                </div>
+                <div class="test-result">Testing http://127.0.0.1:8001/preferences/user123</div>
+            </div>
+
+            <div id="testDocs" class="test-item loading">
+                <div class="test-label">
+                    <span class="spinner"></span>
+                    API Docs
+                </div>
+                <div class="test-result">Testing http://127.0.0.1:8001/docs</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <button onclick="runTests()">🔄 Run All Tests</button>
+        </div>
+    </div>
+
+    <script>
+        async function runTests() {
+            const tests = [
+                { id: 'testRoot', url: 'http://127.0.0.1:8001/', name: 'Root' },
+                { id: 'testHealth', url: 'http://127.0.0.1:8001/health', name: 'Health' },
+                { id: 'testPrefs', url: 'http://127.0.0.1:8001/preferences/user123', name: 'Preferences' },
+                { id: 'testDocs', url: 'http://127.0.0.1:8001/docs', name: 'Docs' }
+            ];
+
+            for (const test of tests) {
+                await runTest(test);
+            }
+        }
+
+        async function runTest(test) {
+            const element = document.getElementById(test.id);
+            try {
+                const response = await fetch(test.url, { 
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                
+                let data;
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    data = await response.json();
+                } else {
+                    data = await response.text();
+                }
+
+                if (response.ok) {
+                    element.className = 'test-item success';
+                    element.querySelector('.test-result').textContent = 
+                        `✓ ${response.status} OK\n\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    element.className = 'test-item error';
+                    element.querySelector('.test-result').textContent = 
+                        `✗ ${response.status} Error\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                element.className = 'test-item error';
+                element.querySelector('.test-result').textContent = 
+                    `✗ Failed to connect\n\nError: ${error.message}\n\nMake sure backend is running on port 8001`;
+            }
+        }
+
+        // Run tests on page load
+        window.addEventListener('load', runTests);
+    </script>
+</body>
+</html>
