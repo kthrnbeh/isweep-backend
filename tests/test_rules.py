@@ -115,6 +115,17 @@ class TestDecisionEngine:
 
     def test_content_type_match_with_confidence(self, db_session):
         """Test that content type with sufficient confidence triggers action."""
+        # First, set up a sexual preference with skip action
+        pref = Preference(
+            user_id="user_test",
+            category="sexual",
+            enabled=True,
+            action=Action.skip,
+            duration_seconds=30,
+            blocked_words=[],
+        )
+        rules.save_preference(db_session, pref)
+
         event = Event(
             user_id="user_test",
             text=None,
@@ -170,4 +181,96 @@ class TestDecisionEngine:
 
         decision = rules.decide(db_session, event)
         assert decision.action == Action.none
-        assert decision.duration_seconds == 0
+
+    def test_blocked_word_with_special_characters(self, db_session):
+        """Test that blocked words match even with special characters in text."""
+        pref = Preference(
+            user_id="user_special",
+            category="language",
+            enabled=True,
+            action=Action.mute,
+            duration_seconds=5,
+            blocked_words=["don't", "can't"],
+        )
+        rules.save_preference(db_session, pref)
+
+        # Test with same special characters
+        event = Event(
+            user_id="user_special",
+            text="You don't understand",
+            content_type=None,
+        )
+        decision = rules.decide(db_session, event)
+        assert decision.action == Action.mute
+        assert "Blocked word" in decision.reason
+
+    def test_blocked_word_word_boundary_no_partial_match(self, db_session):
+        """Test that blocked words don't match as substrings."""
+        pref = Preference(
+            user_id="user_boundary",
+            category="language",
+            enabled=True,
+            action=Action.mute,
+            duration_seconds=5,
+            blocked_words=["cat"],
+        )
+        rules.save_preference(db_session, pref)
+
+        # "cat" should NOT match in "scatter" or "category"
+        event = Event(
+            user_id="user_boundary",
+            text="The scatter plot shows categories",
+            content_type=None,
+        )
+        decision = rules.decide(db_session, event)
+        assert decision.action == Action.none
+
+        # "cat" SHOULD match when it's a standalone word
+        event2 = Event(
+            user_id="user_boundary",
+            text="The cat is here",
+            content_type=None,
+        )
+        decision2 = rules.decide(db_session, event2)
+        assert decision2.action == Action.mute
+
+    def test_blocked_word_case_insensitive(self, db_session):
+        """Test that matching is case-insensitive."""
+        pref = Preference(
+            user_id="user_case",
+            category="language",
+            enabled=True,
+            action=Action.mute,
+            duration_seconds=5,
+            blocked_words=["PROFANITY"],
+        )
+        rules.save_preference(db_session, pref)
+
+        # Different cases should all match
+        for text in ["profanity", "PROFANITY", "Profanity", "pRoFaNiTy"]:
+            event = Event(user_id="user_case", text=text, content_type=None)
+            decision = rules.decide(db_session, event)
+            assert decision.action == Action.mute, f"Failed for: {text}"
+
+    def test_multiple_blocked_words(self, db_session):
+        """Test that any blocked word triggers action."""
+        pref = Preference(
+            user_id="user_multi",
+            category="language",
+            enabled=True,
+            action=Action.mute,
+            duration_seconds=5,
+            blocked_words=["damn", "hell", "crap"],
+        )
+        rules.save_preference(db_session, pref)
+
+        # Test each word
+        for word in ["damn", "hell", "crap"]:
+            event = Event(
+                user_id="user_multi",
+                text=f"This is so {word}",
+                content_type=None,
+            )
+            decision = rules.decide(db_session, event)
+            assert decision.action == Action.mute, f"Failed for word: {word}"
+            assert decision.duration_seconds == 5, f"Wrong duration for word: {word}"

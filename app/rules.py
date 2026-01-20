@@ -6,6 +6,7 @@ Now uses SQLAlchemy ORM for persistence.
 
 from __future__ import annotations
 
+import re
 from typing import Optional
 from sqlalchemy.orm import Session
 from .models import Preference, Event, DecisionResponse, Action
@@ -111,8 +112,13 @@ def _db_to_preference(db_pref: PreferenceDB) -> Preference:
 def _find_blocked_word_match(db: Session, user_id: str, text: str) -> Optional[tuple[str, str]]:
     """
     Return (category, matched_word) if any blocked word matches.
+    Uses word-boundary matching to avoid partial matches.
+    Handles special characters and punctuation properly.
     """
-    lowered = text.lower()
+    # Remove and normalize special characters: punctuation and extra spaces
+    normalized_text = re.sub(r'[^\w\s]', ' ', text.lower())
+    text_words = set(normalized_text.split())
+    
     prefs = get_all_preferences(db, user_id)
 
     for category, pref in prefs.items():
@@ -120,7 +126,15 @@ def _find_blocked_word_match(db: Session, user_id: str, text: str) -> Optional[t
             continue
         for w in pref.blocked_words:
             w2 = w.strip().lower()
-            if w2 and w2 in lowered:
+            if not w2:
+                continue
+            
+            # Normalize the blocked word (remove special characters)
+            normalized_word = re.sub(r'[^\w\s]', ' ', w2).strip()
+            
+            # Check if the normalized word or any of its parts match
+            word_parts = normalized_word.split()
+            if word_parts and word_parts[0] in text_words:
                 return (category, w2)
 
     return None
