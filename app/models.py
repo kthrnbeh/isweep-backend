@@ -18,7 +18,7 @@ class Preference(BaseModel):
     category: str = Field(..., description="Filter category, e.g. language/sexual/violence")
     enabled: bool = True
     action: Action = Action.none
-    duration_seconds: int = Field(default=0, ge=0, description="Duration in seconds")
+    duration_seconds: float = Field(default=0.0, ge=0, description="Duration in seconds")
     blocked_words: List[str] = Field(default_factory=list)
 
     class Config:
@@ -44,6 +44,6 @@ class Event(BaseModel):
 
 class DecisionResponse(BaseModel):
     action: Action
-    duration_seconds: int
+    duration_seconds: float
     reason: str
     matched_category: Optional[str] = None

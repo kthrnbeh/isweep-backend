@@ -4,7 +4,7 @@ Database setup and ORM models for ISweep.
 """
 
 import os
-from sqlalchemy import create_engine, Column, String, Boolean, Integer
+from sqlalchemy import create_engine, Column, String, Boolean, Integer, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -34,7 +34,7 @@ class PreferenceDB(Base):
     category = Column(String, index=True)
     enabled = Column(Boolean, default=True)
     action = Column(String, default="none")
-    duration_seconds = Column(Integer, default=0)
+    duration_seconds = Column(Float, default=0.0)
     blocked_words = Column(String, default="")  # JSON or comma-separated
 
     def __repr__(self):
