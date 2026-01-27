@@ -47,3 +47,4 @@ class DecisionResponse(BaseModel):
     duration_seconds: float
     reason: str
     matched_category: Optional[str] = None
+    matched_term: Optional[str] = None

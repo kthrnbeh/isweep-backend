@@ -160,6 +160,7 @@ def decide(db: Session, event: Event) -> DecisionResponse:
                     duration_seconds=pref.duration_seconds,
                     reason=f"Blocked word match: '{word}'",
                     matched_category=category,
+                    matched_term=word,
                 )
 
     # 2) Content model category
@@ -174,6 +175,7 @@ def decide(db: Session, event: Event) -> DecisionResponse:
                     duration_seconds=pref.duration_seconds,
                     reason=f"Matched category '{event.content_type}' (confidence={event.confidence})",
                     matched_category=event.content_type,
+                    matched_term=event.content_type,
                 )
 
     # 3) No action needed
@@ -182,4 +184,5 @@ def decide(db: Session, event: Event) -> DecisionResponse:
         duration_seconds=0,
         reason="No filter matched",
         matched_category=None,
+        matched_term=None,
     )
