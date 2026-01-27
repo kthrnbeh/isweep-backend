@@ -90,6 +90,31 @@ def set_preference(pref: Preference, db: Session = Depends(get_db)) -> dict[str,
         raise HTTPException(status_code=500, detail=f"Failed to save preference: {str(e)}")
 
 
+@app.post("/preferences/bulk")
+def set_bulk_preferences(bulk: Any, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Save all preferences for a user in one request."""
+    try:
+        # Extract user_id and preferences from request
+        user_id = bulk.get('user_id', '').strip() if isinstance(bulk, dict) else ''
+        if not user_id:
+            raise HTTPException(status_code=400, detail="user_id cannot be empty")
+        
+        preferences = bulk.get('preferences', {}) if isinstance(bulk, dict) else {}
+        if not preferences:
+            raise HTTPException(status_code=400, detail="preferences cannot be empty")
+        
+        rules.save_bulk_preferences(db, user_id, preferences)
+        return {
+            "status": "saved",
+            "user_id": user_id,
+            "categories_saved": list(preferences.keys()),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save bulk preferences: {str(e)}")
+
+
 @app.get("/preferences/{user_id}")
 def get_all_preferences(user_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Get all preferences for a user."""

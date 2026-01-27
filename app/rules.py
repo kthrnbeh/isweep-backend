@@ -59,6 +59,49 @@ def save_preference(db: Session, pref: Preference) -> None:
     db.commit()
 
 
+def save_bulk_preferences(db: Session, user_id: str, preferences: dict[str, any]) -> None:
+    """
+    Save multiple preferences for a user in one transaction.
+    preferences: dict mapping category -> {enabled, action, duration_seconds, blocked_words}
+    """
+    for category, pref_data in preferences.items():
+        # Convert dict to Preference model
+        pref = Preference(
+            user_id=user_id,
+            category=category,
+            enabled=pref_data.get('enabled', True),
+            action=Action(pref_data.get('action', 'none')),
+            duration_seconds=pref_data.get('duration_seconds', 0.0),
+            blocked_words=pref_data.get('blocked_words', []),
+        )
+        
+        # Check if preference already exists
+        existing = db.query(PreferenceDB).filter(
+            PreferenceDB.user_id == user_id,
+            PreferenceDB.category == category,
+        ).first()
+
+        if existing:
+            # Update
+            existing.enabled = pref.enabled
+            existing.action = pref.action.value
+            existing.duration_seconds = pref.duration_seconds
+            existing.blocked_words = ",".join(pref.blocked_words)
+        else:
+            # Insert
+            db_pref = PreferenceDB(
+                user_id=user_id,
+                category=category,
+                enabled=pref.enabled,
+                action=pref.action.value,
+                duration_seconds=pref.duration_seconds,
+                blocked_words=",".join(pref.blocked_words),
+            )
+            db.add(db_pref)
+    
+    db.commit()
+
+
 def get_preference(db: Session, user_id: str, category: str) -> Optional[Preference]:
     """Retrieve a single preference."""
     db_pref = db.query(PreferenceDB).filter(

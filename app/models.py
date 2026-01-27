@@ -48,3 +48,38 @@ class DecisionResponse(BaseModel):
     reason: str
     matched_category: Optional[str] = None
     matched_term: Optional[str] = None
+
+
+class CategoryPreference(BaseModel):
+    """Preference data for a single category (without user_id or category field)."""
+    enabled: bool = True
+    action: Action = Action.none
+    duration_seconds: float = Field(default=0.0, ge=0, description="Duration in seconds")
+    blocked_words: List[str] = Field(default_factory=list)
+
+
+class BulkPreferences(BaseModel):
+    """Bulk preference update for all categories."""
+    user_id: str = Field(..., description="User identifier")
+    preferences: dict[str, CategoryPreference] = Field(..., description="Preferences by category")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "user_id": "user123",
+                "preferences": {
+                    "language": {
+                        "enabled": True,
+                        "action": "mute",
+                        "duration_seconds": 4,
+                        "blocked_words": ["word1", "word2"]
+                    },
+                    "violence": {
+                        "enabled": True,
+                        "action": "skip",
+                        "duration_seconds": 10,
+                        "blocked_words": []
+                    }
+                }
+            }
+        }
