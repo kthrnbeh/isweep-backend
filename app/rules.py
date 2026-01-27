@@ -17,11 +17,14 @@ from .database import PreferenceDB
 # DEFAULT PREFERENCES
 # -------------------------------------------------
 def _default_preferences_for_user(user_id: str) -> list[Preference]:
-    """Default preferences when user has no custom config."""
+    """Default preferences when user has no custom config.
+    
+    Standardized category keys: language, violence, sexual
+    """
     return [
         Preference(user_id=user_id, category="language", enabled=True, action=Action.mute, duration_seconds=4, blocked_words=[]),
-        Preference(user_id=user_id, category="sexual", enabled=True, action=Action.skip, duration_seconds=30, blocked_words=[]),
         Preference(user_id=user_id, category="violence", enabled=True, action=Action.fast_forward, duration_seconds=10, blocked_words=[]),
+        Preference(user_id=user_id, category="sexual", enabled=True, action=Action.skip, duration_seconds=30, blocked_words=[]),
     ]
 
 
@@ -38,12 +41,16 @@ def save_preference(db: Session, pref: Preference) -> None:
         PreferenceDB.category == pref.category,
     ).first()
 
+    import json
+    
     if existing:
         # Update
         existing.enabled = pref.enabled
         existing.action = pref.action.value
         existing.duration_seconds = pref.duration_seconds
         existing.blocked_words = ",".join(pref.blocked_words)
+        existing.selected_packs = json.dumps(pref.selected_packs)
+        existing.custom_words = json.dumps(pref.custom_words)
     else:
         # Insert
         db_pref = PreferenceDB(
@@ -53,6 +60,8 @@ def save_preference(db: Session, pref: Preference) -> None:
             action=pref.action.value,
             duration_seconds=pref.duration_seconds,
             blocked_words=",".join(pref.blocked_words),
+            selected_packs=json.dumps(pref.selected_packs),
+            custom_words=json.dumps(pref.custom_words),
         )
         db.add(db_pref)
 
@@ -62,8 +71,10 @@ def save_preference(db: Session, pref: Preference) -> None:
 def save_bulk_preferences(db: Session, user_id: str, preferences: dict[str, any]) -> None:
     """
     Save multiple preferences for a user in one transaction.
-    preferences: dict mapping category -> {enabled, action, duration_seconds, blocked_words}
+    preferences: dict mapping category -> {enabled, action, duration_seconds, blocked_words, selected_packs, custom_words}
     """
+    import json
+    
     for category, pref_data in preferences.items():
         # Convert dict to Preference model
         pref = Preference(
@@ -73,6 +84,8 @@ def save_bulk_preferences(db: Session, user_id: str, preferences: dict[str, any]
             action=Action(pref_data.get('action', 'none')),
             duration_seconds=pref_data.get('duration_seconds', 0.0),
             blocked_words=pref_data.get('blocked_words', []),
+            selected_packs=pref_data.get('selected_packs', {}),
+            custom_words=pref_data.get('custom_words', []),
         )
         
         # Check if preference already exists
@@ -87,6 +100,8 @@ def save_bulk_preferences(db: Session, user_id: str, preferences: dict[str, any]
             existing.action = pref.action.value
             existing.duration_seconds = pref.duration_seconds
             existing.blocked_words = ",".join(pref.blocked_words)
+            existing.selected_packs = json.dumps(pref.selected_packs)
+            existing.custom_words = json.dumps(pref.custom_words)
         else:
             # Insert
             db_pref = PreferenceDB(
@@ -96,6 +111,8 @@ def save_bulk_preferences(db: Session, user_id: str, preferences: dict[str, any]
                 action=pref.action.value,
                 duration_seconds=pref.duration_seconds,
                 blocked_words=",".join(pref.blocked_words),
+                selected_packs=json.dumps(pref.selected_packs),
+                custom_words=json.dumps(pref.custom_words),
             )
             db.add(db_pref)
     
@@ -138,7 +155,21 @@ def get_all_preferences(db: Session, user_id: str) -> dict[str, Preference]:
 
 def _db_to_preference(db_pref: PreferenceDB) -> Preference:
     """Convert database record to Pydantic model."""
+    import json
+    
     blocked_words = [w.strip() for w in db_pref.blocked_words.split(",") if w.strip()] if db_pref.blocked_words else []
+    
+    # Parse JSON fields with fallback to defaults
+    try:
+        selected_packs = json.loads(db_pref.selected_packs) if hasattr(db_pref, 'selected_packs') and db_pref.selected_packs else {}
+    except (json.JSONDecodeError, AttributeError):
+        selected_packs = {}
+    
+    try:
+        custom_words = json.loads(db_pref.custom_words) if hasattr(db_pref, 'custom_words') and db_pref.custom_words else []
+    except (json.JSONDecodeError, AttributeError):
+        custom_words = []
+    
     return Preference(
         user_id=db_pref.user_id,
         category=db_pref.category,
@@ -146,6 +177,8 @@ def _db_to_preference(db_pref: PreferenceDB) -> Preference:
         action=Action(db_pref.action),
         duration_seconds=db_pref.duration_seconds,
         blocked_words=blocked_words,
+        selected_packs=selected_packs,
+        custom_words=custom_words,
     )
 
 

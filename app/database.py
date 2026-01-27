@@ -26,7 +26,13 @@ Base = declarative_base()
 # ORM MODELS
 # -------------------------------------------------
 class PreferenceDB(Base):
-    """Persistent preference record in database."""
+    """Persistent preference record in database.
+    
+    Stores both the effective blocked_words AND the user's selections:
+    - blocked_words: effective merged list (for backward compatibility and quick access)
+    - selected_packs: JSON string of preset pack selections (e.g., '{"strong_profanity": true}')
+    - custom_words: JSON string of user's custom words (e.g., '["word1", "word2"]')
+    """
     __tablename__ = "preferences"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -35,7 +41,9 @@ class PreferenceDB(Base):
     enabled = Column(Boolean, default=True)
     action = Column(String, default="none")
     duration_seconds = Column(Float, default=0.0)
-    blocked_words = Column(String, default="")  # JSON or comma-separated
+    blocked_words = Column(String, default="")  # Effective merged list (comma-separated)
+    selected_packs = Column(String, default="{}")  # JSON object of pack selections
+    custom_words = Column(String, default="[]")  # JSON array of custom words
 
     def __repr__(self):
         return f"<PreferenceDB(user={self.user_id}, category={self.category})>"

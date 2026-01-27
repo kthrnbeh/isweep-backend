@@ -15,11 +15,13 @@ class Action(str, Enum):
 
 class Preference(BaseModel):
     user_id: str = Field(..., description="User identifier")
-    category: str = Field(..., description="Filter category, e.g. language/sexual/violence")
+    category: str = Field(..., description="Filter category: language, violence, or sexual (standardized keys)")
     enabled: bool = True
     action: Action = Action.none
     duration_seconds: float = Field(default=0.0, ge=0, description="Duration in seconds")
-    blocked_words: List[str] = Field(default_factory=list)
+    blocked_words: List[str] = Field(default_factory=list, description="Effective merged blocked words")
+    selected_packs: dict = Field(default_factory=dict, description="Preset pack selections (e.g., {'strong_profanity': true})")
+    custom_words: List[str] = Field(default_factory=list, description="User's custom words")
 
     class Config:
         json_schema_extra = {
@@ -29,7 +31,9 @@ class Preference(BaseModel):
                 "enabled": True,
                 "action": "mute",
                 "duration_seconds": 4,
-                "blocked_words": ["profanity1", "profanity2"]
+                "blocked_words": ["profanity1", "profanity2"],
+                "selected_packs": {"strong_profanity": True},
+                "custom_words": ["myword"]
             }
         }
 
@@ -55,7 +59,9 @@ class CategoryPreference(BaseModel):
     enabled: bool = True
     action: Action = Action.none
     duration_seconds: float = Field(default=0.0, ge=0, description="Duration in seconds")
-    blocked_words: List[str] = Field(default_factory=list)
+    blocked_words: List[str] = Field(default_factory=list, description="Effective merged blocked words")
+    selected_packs: dict = Field(default_factory=dict, description="Preset pack selections")
+    custom_words: List[str] = Field(default_factory=list, description="User's custom words")
 
 
 class BulkPreferences(BaseModel):
