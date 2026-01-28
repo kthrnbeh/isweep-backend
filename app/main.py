@@ -5,7 +5,7 @@ Acts as the central decision engine for filtering behavior.
 """
 
 from typing import Any
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
@@ -91,7 +91,7 @@ def set_preference(pref: Preference, db: Session = Depends(get_db)) -> dict[str,
 
 
 @app.post("/preferences/bulk")
-def set_bulk_preferences(bulk: Any, db: Session = Depends(get_db)) -> dict[str, Any]:
+def set_bulk_preferences(bulk: dict = Body(...), db: Session = Depends(get_db)) -> dict[str, Any]:
     """Save all preferences for a user in one request."""
     try:
         # Log the raw request for debugging
