@@ -4,9 +4,12 @@ Database setup and ORM models for ISweep.
 """
 
 import os
-from sqlalchemy import create_engine, Column, String, Boolean, Integer, Float
+import logging
+from sqlalchemy import create_engine, Column, String, Boolean, Integer, Float, inspect
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+
+logger = logging.getLogger(__name__)
 
 # SQLite database file
 DB_PATH = os.getenv("ISWEEP_DB_PATH", "isweep.db")
@@ -51,9 +54,34 @@ class PreferenceDB(Base):
         return f"<PreferenceDB(user={self.user_id}, category={self.category})>"
 
 
+def migrate_db():
+    """Add missing columns to existing database tables."""
+    inspector = inspect(engine)
+    
+    # Check if preferences table exists
+    if 'preferences' not in inspector.get_table_names():
+        logger.info("Preferences table doesn't exist yet, will be created by init_db()")
+        return
+    
+    # Get existing columns
+    existing_columns = {col['name'] for col in inspector.get_columns('preferences')}
+    logger.info(f"Existing columns in preferences table: {existing_columns}")
+    
+    # Add caption_offset_ms column if missing
+    if 'caption_offset_ms' not in existing_columns:
+        logger.info("Adding caption_offset_ms column to preferences table...")
+        with engine.connect() as conn:
+            conn.execute('ALTER TABLE preferences ADD COLUMN caption_offset_ms INTEGER DEFAULT 300')
+            conn.commit()
+        logger.info("✅ Added caption_offset_ms column")
+    else:
+        logger.info("caption_offset_ms column already exists")
+
+
 def init_db():
-    """Create all tables in the database."""
+    """Create all tables in the database and run migrations."""
     Base.metadata.create_all(bind=engine)
+    migrate_db()
 
 
 def get_db():
