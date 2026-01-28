@@ -22,7 +22,7 @@ class Preference(BaseModel):
     blocked_words: List[str] = Field(default_factory=list, description="Effective merged blocked words")
     selected_packs: dict = Field(default_factory=dict, description="Preset pack selections (e.g., {'strong_profanity': true})")
     custom_words: List[str] = Field(default_factory=list, description="User's custom words")
-    caption_offset_ms: int = Field(default=300, ge=0, le=2000, description="Caption timing offset in milliseconds (0-2000ms)")
+    caption_offset_ms: int = Field(default=300, ge=-1000, le=2000, description="Caption timing offset in milliseconds (-1000 to +2000ms; negative = premute)")
 
     class Config:
         json_schema_extra = {
@@ -64,7 +64,7 @@ class CategoryPreference(BaseModel):
     blocked_words: List[str] = Field(default_factory=list, description="Effective merged blocked words")
     selected_packs: dict = Field(default_factory=dict, description="Preset pack selections")
     custom_words: List[str] = Field(default_factory=list, description="User's custom words")
-    caption_offset_ms: int = Field(default=300, ge=0, le=2000, description="Caption timing offset in milliseconds")
+    caption_offset_ms: int = Field(default=300, ge=-1000, le=2000, description="Caption timing offset in milliseconds (-1000 to +2000ms; negative = premute)")
 
 
 class BulkPreferences(BaseModel):
