@@ -22,7 +22,7 @@ def _default_preferences_for_user(user_id: str) -> list[Preference]:
     Standardized category keys: language, violence, sexual
     """
     return [
-        Preference(user_id=user_id, category="language", enabled=True, action=Action.mute, duration_seconds=4, blocked_words=[]),
+        Preference(user_id=user_id, category="language", enabled=True, action=Action.mute, duration_seconds=0.5, blocked_words=[]),
         Preference(user_id=user_id, category="violence", enabled=True, action=Action.fast_forward, duration_seconds=10, blocked_words=[]),
         Preference(user_id=user_id, category="sexual", enabled=True, action=Action.skip, duration_seconds=30, blocked_words=[]),
     ]
