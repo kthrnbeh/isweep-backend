@@ -208,10 +208,16 @@ def _find_blocked_word_match(db: Session, user_id: str, text: str) -> Optional[t
             # Normalize the blocked word (remove special characters)
             normalized_word = re.sub(r'[^\w\s]', ' ', w2).strip()
             
-            # Check if the normalized word or any of its parts match
-            word_parts = normalized_word.split()
-            if word_parts and word_parts[0] in text_words:
-                return (category, w2)
+            # Check for exact multi-word match (phrase)
+            if ' ' in normalized_word:
+                # Multi-word phrase: check if all words appear in text
+                word_parts = normalized_word.split()
+                if all(part in text_words for part in word_parts):
+                    return (category, w2)
+            else:
+                # Single word: check if it's in text
+                if normalized_word in text_words:
+                    return (category, w2)
 
     return None
 
