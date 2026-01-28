@@ -94,6 +94,10 @@ def set_preference(pref: Preference, db: Session = Depends(get_db)) -> dict[str,
 def set_bulk_preferences(bulk: Any, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Save all preferences for a user in one request."""
     try:
+        # Log the raw request for debugging
+        import json
+        print(f"[DEBUG] Received bulk request: {json.dumps(bulk, indent=2)}")
+        
         # Extract user_id and preferences from request
         user_id = bulk.get('user_id', '').strip() if isinstance(bulk, dict) else ''
         if not user_id:
@@ -103,6 +107,7 @@ def set_bulk_preferences(bulk: Any, db: Session = Depends(get_db)) -> dict[str, 
         if not preferences:
             raise HTTPException(status_code=400, detail="preferences cannot be empty")
         
+        print(f"[DEBUG] Processing {len(preferences)} categories for user: {user_id}")
         rules.save_bulk_preferences(db, user_id, preferences)
         return {
             "status": "saved",
@@ -112,6 +117,8 @@ def set_bulk_preferences(bulk: Any, db: Session = Depends(get_db)) -> dict[str, 
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to save bulk preferences: {str(e)}")
 
 
