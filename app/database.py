@@ -5,7 +5,7 @@ Database setup and ORM models for ISweep.
 
 import os
 import logging
-from sqlalchemy import create_engine, Column, String, Boolean, Integer, Float, inspect
+from sqlalchemy import create_engine, Column, String, Boolean, Integer, Float, inspect, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -71,7 +71,7 @@ def migrate_db():
     if 'caption_offset_ms' not in existing_columns:
         logger.info("Adding caption_offset_ms column to preferences table...")
         with engine.connect() as conn:
-            conn.execute('ALTER TABLE preferences ADD COLUMN caption_offset_ms INTEGER DEFAULT 300')
+            conn.execute(text('ALTER TABLE preferences ADD COLUMN caption_offset_ms INTEGER DEFAULT 300'))
             conn.commit()
         logger.info("✅ Added caption_offset_ms column")
     else:
