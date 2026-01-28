@@ -22,9 +22,9 @@ def _default_preferences_for_user(user_id: str) -> list[Preference]:
     Standardized category keys: language, violence, sexual
     """
     return [
-        Preference(user_id=user_id, category="language", enabled=True, action=Action.mute, duration_seconds=0.5, blocked_words=[]),
-        Preference(user_id=user_id, category="violence", enabled=True, action=Action.fast_forward, duration_seconds=10, blocked_words=[]),
-        Preference(user_id=user_id, category="sexual", enabled=True, action=Action.skip, duration_seconds=30, blocked_words=[]),
+        Preference(user_id=user_id, category="language", enabled=True, action=Action.mute, duration_seconds=0.5, blocked_words=[], caption_offset_ms=300),
+        Preference(user_id=user_id, category="violence", enabled=True, action=Action.fast_forward, duration_seconds=10, blocked_words=[], caption_offset_ms=300),
+        Preference(user_id=user_id, category="sexual", enabled=True, action=Action.skip, duration_seconds=30, blocked_words=[], caption_offset_ms=300),
     ]
 
 
@@ -51,6 +51,7 @@ def save_preference(db: Session, pref: Preference) -> None:
         existing.blocked_words = ",".join(pref.blocked_words)
         existing.selected_packs = json.dumps(pref.selected_packs)
         existing.custom_words = json.dumps(pref.custom_words)
+        existing.caption_offset_ms = pref.caption_offset_ms
     else:
         # Insert
         db_pref = PreferenceDB(
@@ -62,6 +63,7 @@ def save_preference(db: Session, pref: Preference) -> None:
             blocked_words=",".join(pref.blocked_words),
             selected_packs=json.dumps(pref.selected_packs),
             custom_words=json.dumps(pref.custom_words),
+            caption_offset_ms=pref.caption_offset_ms,
         )
         db.add(db_pref)
 
@@ -71,7 +73,7 @@ def save_preference(db: Session, pref: Preference) -> None:
 def save_bulk_preferences(db: Session, user_id: str, preferences: dict[str, any]) -> None:
     """
     Save multiple preferences for a user in one transaction.
-    preferences: dict mapping category -> {enabled, action, duration_seconds, blocked_words, selected_packs, custom_words}
+    preferences: dict mapping category -> {enabled, action, duration_seconds, blocked_words, selected_packs, custom_words, caption_offset_ms}
     """
     import json
     
@@ -86,6 +88,7 @@ def save_bulk_preferences(db: Session, user_id: str, preferences: dict[str, any]
             blocked_words=pref_data.get('blocked_words', []),
             selected_packs=pref_data.get('selected_packs', {}),
             custom_words=pref_data.get('custom_words', []),
+            caption_offset_ms=int(pref_data.get('caption_offset_ms', 300)),
         )
         
         # Check if preference already exists
@@ -102,6 +105,7 @@ def save_bulk_preferences(db: Session, user_id: str, preferences: dict[str, any]
             existing.blocked_words = ",".join(pref.blocked_words)
             existing.selected_packs = json.dumps(pref.selected_packs)
             existing.custom_words = json.dumps(pref.custom_words)
+            existing.caption_offset_ms = pref.caption_offset_ms
         else:
             # Insert
             db_pref = PreferenceDB(
@@ -113,6 +117,7 @@ def save_bulk_preferences(db: Session, user_id: str, preferences: dict[str, any]
                 blocked_words=",".join(pref.blocked_words),
                 selected_packs=json.dumps(pref.selected_packs),
                 custom_words=json.dumps(pref.custom_words),
+                caption_offset_ms=pref.caption_offset_ms,
             )
             db.add(db_pref)
     
@@ -170,6 +175,9 @@ def _db_to_preference(db_pref: PreferenceDB) -> Preference:
     except (json.JSONDecodeError, AttributeError):
         custom_words = []
     
+    # Get caption offset with fallback to default
+    caption_offset_ms = int(db_pref.caption_offset_ms) if hasattr(db_pref, 'caption_offset_ms') and db_pref.caption_offset_ms is not None else 300
+    
     return Preference(
         user_id=db_pref.user_id,
         category=db_pref.category,
@@ -179,45 +187,51 @@ def _db_to_preference(db_pref: PreferenceDB) -> Preference:
         blocked_words=blocked_words,
         selected_packs=selected_packs,
         custom_words=custom_words,
+        caption_offset_ms=caption_offset_ms,
     )
 
 
 # -------------------------------------------------
 # DECISION ENGINE
 # -------------------------------------------------
-def _find_blocked_word_match(db: Session, user_id: str, text: str) -> Optional[tuple[str, str]]:
+def _find_blocked_word_match(db: Session, user_id: str, text: str) -> Optional[tuple[str, str, str]]:
     """
-    Return (category, matched_word) if any blocked word matches.
-    Uses word-boundary matching to avoid partial matches.
-    Handles special characters and punctuation properly.
+    Return (category, matched_word, regex_used) if any blocked word matches.
+    Uses word-boundary regex matching to ensure exact phrase/word boundaries.
+    Example:
+      - "god" matches only as \bgod\b (standalone word, not inside other words)
+      - "god almighty" matches only as \bgod\s+almighty\b (words in sequence)
     """
-    # Remove and normalize special characters: punctuation and extra spaces
-    normalized_text = re.sub(r'[^\w\s]', ' ', text.lower())
-    text_words = set(normalized_text.split())
-    
     prefs = get_all_preferences(db, user_id)
+    text_lower = text.lower()
 
     for category, pref in prefs.items():
         if not pref.enabled:
             continue
-        for w in pref.blocked_words:
-            w2 = w.strip().lower()
-            if not w2:
+        
+        for blocked_word in pref.blocked_words:
+            if not blocked_word or not blocked_word.strip():
                 continue
             
-            # Normalize the blocked word (remove special characters)
-            normalized_word = re.sub(r'[^\w\s]', ' ', w2).strip()
+            w_clean = blocked_word.strip().lower()
             
-            # Check for exact multi-word match (phrase)
-            if ' ' in normalized_word:
-                # Multi-word phrase: check if all words appear in text
-                word_parts = normalized_word.split()
-                if all(part in text_words for part in word_parts):
-                    return (category, w2)
-            else:
-                # Single word: check if it's in text
-                if normalized_word in text_words:
-                    return (category, w2)
+            # Build regex pattern with word boundaries
+            # Replace punctuation with flexible whitespace, keep word characters
+            # Example: "god almighty" -> r'\bgod\s+almighty\b'
+            # Example: "goddamn" -> r'\bgoddamn\b'
+            
+            # Escape special regex chars, but preserve word structure
+            pattern = re.escape(w_clean)
+            # Replace escaped spaces with flexible whitespace
+            pattern = pattern.replace(r'\ ', r'\s+')
+            # Add word boundaries at start and end
+            pattern = r'\b' + pattern + r'\b'
+            
+            # Try to match the pattern in normalized text
+            match = re.search(pattern, text_lower)
+            if match:
+                matched_substring = match.group(0)
+                return (category, blocked_word, pattern)
 
     return None
 
@@ -234,13 +248,13 @@ def decide(db: Session, event: Event) -> DecisionResponse:
     if event.text:
         hit = _find_blocked_word_match(db, event.user_id, event.text)
         if hit:
-            category, word = hit
+            category, word, regex_pattern = hit
             pref = get_preference(db, event.user_id, category)
             if pref and pref.enabled:
                 return DecisionResponse(
                     action=pref.action,
                     duration_seconds=pref.duration_seconds,
-                    reason=f"Blocked word match: '{word}'",
+                    reason=f"Blocked word match: '{word}' (regex: {regex_pattern})",
                     matched_category=category,
                     matched_term=word,
                 )

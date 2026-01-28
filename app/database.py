@@ -32,6 +32,7 @@ class PreferenceDB(Base):
     - blocked_words: effective merged list (for backward compatibility and quick access)
     - selected_packs: JSON string of preset pack selections (e.g., '{"strong_profanity": true}')
     - custom_words: JSON string of user's custom words (e.g., '["word1", "word2"]')
+    - caption_offset_ms: timing offset for captions (0-2000ms)
     """
     __tablename__ = "preferences"
 
@@ -44,6 +45,7 @@ class PreferenceDB(Base):
     blocked_words = Column(String, default="")  # Effective merged list (comma-separated)
     selected_packs = Column(String, default="{}")  # JSON object of pack selections
     custom_words = Column(String, default="[]")  # JSON array of custom words
+    caption_offset_ms = Column(Integer, default=300)  # Caption timing offset in ms
 
     def __repr__(self):
         return f"<PreferenceDB(user={self.user_id}, category={self.category})>"
