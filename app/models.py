@@ -92,3 +92,39 @@ class BulkPreferences(BaseModel):
                 }
             }
         }
+
+
+# -------------------------------------------------
+# ASR (AUTOMATIC SPEECH RECOGNITION) MODELS
+# -------------------------------------------------
+class AudioChunk(BaseModel):
+    """Audio chunk from extension."""
+    user_id: str = Field(..., description="User identifier")
+    tab_id: int = Field(..., description="Chrome tab ID")
+    seq: int = Field(..., description="Sequence number of this chunk")
+    mime_type: str = Field(..., description="Audio MIME type (e.g., 'audio/webm;codecs=opus')")
+    audio_b64: str = Field(..., description="Base64-encoded audio data")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "user_id": "user123",
+                "tab_id": 123,
+                "seq": 1,
+                "mime_type": "audio/webm;codecs=opus",
+                "audio_b64": "GkXfo59..."
+            }
+        }
+
+
+class TranscriptSegment(BaseModel):
+    """Transcribed audio segment with timing."""
+    text: str = Field(..., description="Transcribed text")
+    start_seconds: float = Field(..., ge=0, description="Segment start time in seconds")
+    end_seconds: float = Field(..., ge=0, description="Segment end time in seconds")
+    confidence: float = Field(default=0.9, ge=0.0, le=1.0, description="Confidence score 0-1")
+
+
+class ASRStreamResponse(BaseModel):
+    """Response from /asr/stream endpoint."""
+    segments: List[TranscriptSegment] = Field(default_factory=list, description="Transcribed segments")
