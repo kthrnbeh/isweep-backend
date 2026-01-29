@@ -152,3 +152,60 @@ def handle_event(event: Event, db: Session = Depends(get_db)) -> DecisionRespons
         return decision
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Decision failed: {str(e)}")
+
+
+# -------------------------------------------------
+# ASR (AUTOMATIC SPEECH RECOGNITION) ENDPOINT
+# -------------------------------------------------
+@app.post("/asr/stream", response_model=ASRStreamResponse)
+def asr_stream(chunk: AudioChunk) -> ASRStreamResponse:
+    """
+    Stream audio chunks for automatic speech recognition.
+    
+    Accepts audio chunks from the ISweep Chrome extension, buffers them,
+    and returns transcribed segments when ready.
+    
+    Args:
+        chunk: AudioChunk with user_id, tab_id, seq, mime_type, audio_b64
+    
+    Returns:
+        ASRStreamResponse with segments list (empty if ASR not run yet).
+    
+    Process:
+      1. Decode base64 audio data
+      2. Buffer chunk for (user_id, tab_id)
+      3. Every N chunks, run Whisper ASR on accumulated audio
+      4. Return transcribed segments (or empty list if buffering)
+    """
+    try:
+        # Validate input
+        if not chunk.user_id or not chunk.user_id.strip():
+            raise HTTPException(status_code=400, detail="user_id required")
+        if chunk.tab_id <= 0:
+            raise HTTPException(status_code=400, detail="tab_id must be > 0")
+        if not chunk.audio_b64 or not chunk.audio_b64.strip():
+            raise HTTPException(status_code=400, detail="audio_b64 cannot be empty")
+        
+        print(f"[ASR] /asr/stream: user={chunk.user_id} tab={chunk.tab_id} seq={chunk.seq}")
+        
+        # Process audio chunk and get segments (may be None if buffering)
+        segments = asr.process_audio_chunk(
+            user_id=chunk.user_id,
+            tab_id=chunk.tab_id,
+            seq=chunk.seq,
+            audio_b64=chunk.audio_b64,
+            mime_type=chunk.mime_type
+        )
+        
+        # Return response (empty segments if still buffering)
+        if segments is None:
+            return ASRStreamResponse(segments=[])
+        else:
+            return ASRStreamResponse(segments=segments)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ASR] ERROR in /asr/stream: {e}")
+        # Don't crash; return empty segments
+        return ASRStreamResponse(segments=[])
