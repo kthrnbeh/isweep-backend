@@ -9,8 +9,8 @@ from fastapi import FastAPI, Depends, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from .models import Preference, Event, DecisionResponse
-from . import rules
+from .models import Preference, Event, DecisionResponse, AudioChunk, ASRStreamResponse
+from . import rules, asr
 from .database import init_db, get_db
 
 # -------------------------------------------------
