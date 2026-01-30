@@ -4,7 +4,7 @@ Entry point for running ISweep backend.
 
 Usage:
     python -m app
-    python -m app --host 0.0.0.0 --port 8000
+    python -m app --host 0.0.0.0 --port 8001
 """
 
 import sys
@@ -13,7 +13,7 @@ import uvicorn
 if __name__ == "__main__":
     # Default configuration
     host = "127.0.0.1"
-    port = 8000
+    port = 8001
     reload = True  # Auto-reload on code changes
 
     # Parse command line args if provided
