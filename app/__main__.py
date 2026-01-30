@@ -16,6 +16,13 @@ if __name__ == "__main__":
     port = 8001
     reload = True  # Auto-reload on code changes
 
+    try:
+        import app.main  # noqa: F401
+    except Exception as exc:
+        print("ERROR: Failed to import app.main. Run from isweep-backend and ensure dependencies are installed.")
+        print(f"Details: {exc}")
+        raise
+
     # Parse command line args if provided
     if "--host" in sys.argv:
         idx = sys.argv.index("--host")

@@ -29,6 +29,7 @@ app = FastAPI(
 @app.on_event("startup")
 def startup_event():
     """Initialize database on startup."""
+    print("ISweep backend listening on http://127.0.0.1:8001")
     init_db()
 
 
