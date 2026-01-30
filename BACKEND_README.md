@@ -17,14 +17,34 @@ cp .env.example .env
 
 ### 3. Run the server
 ```bash
-python -m app
+python -m app --host 127.0.0.1 --port 8001 --no-reload
 ```
 
-Server starts at `http://127.0.0.1:8000`
+Server starts at `http://127.0.0.1:8001`
 
 **API Documentation:**
-- Interactive docs: http://127.0.0.1:8000/docs
-- ReDoc: http://127.0.0.1:8000/redoc
+- Interactive docs: http://127.0.0.1:8001/docs
+- ReDoc: http://127.0.0.1:8001/redoc
+
+---
+
+## Windows (PowerShell) Baby Steps
+
+Run these exact commands in PowerShell from the backend folder:
+
+```powershell
+cd c:\ISweep_wireframe\isweep-backend
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
+```
+
+Then open this in your browser to verify:
+
+```
+http://127.0.0.1:8001/health
+```
 
 ### 4. Run tests
 ```bash
