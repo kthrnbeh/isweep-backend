@@ -8,16 +8,15 @@ if (-not (Test-Path $venvPath)) {
     python -m venv .venv
 }
 
-$activatePath = Join-Path $venvPath "Scripts\Activate.ps1"
-. $activatePath
+ $venvPython = Join-Path $venvPath "Scripts\python.exe"
 
-pip install -r requirements.txt
+& $venvPython -m pip install -r requirements.txt
 
 try {
-    python -c "import app.main"
+    & $venvPython -c "import app.main"
 } catch {
     Write-Error "Failed to import app.main. Ensure dependencies are installed and run from isweep-backend."
     exit 1
 }
 
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
+& $venvPython -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
