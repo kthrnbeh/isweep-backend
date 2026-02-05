@@ -140,8 +140,8 @@
             </div>
 
             <strong>Video with Captions:</strong>
-            <video controls>
-                <track kind="captions" src="captions.vtt" srclang="en" label="English">
+            <video id="testVideo" controls crossorigin="anonymous">
+                <track kind="captions" src="captions.vtt" srclang="en" label="English" default>
                 <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">
                 Your browser does not support HTML5 video.
             </video>
@@ -170,7 +170,7 @@
             <h2>Captions File (captions.vtt)</h2>
             
             <div class="warning">
-                <strong>⚠️ Important:</strong> You need to create a <code>captions.vtt</code> file in the same folder as this HTML file.
+                <strong>⚠️ Important:</strong> Place <code>captions.vtt</code> in the SAME folder as this HTML file so the <code>track</code> loads (e.g., keep both in <code>C:\ISweep_wireframe\tests\</code> and open the HTML from there).
             </div>
 
             <strong>Create this file with the following content:</strong>
@@ -195,7 +195,21 @@ Here comes another trigger: profanity again
 End of test video.</code></pre>
 
             <div class="success">
-                <strong>✅ File location:</strong> <code>c:\ISweep_wireframe\isweep-backend\captions.vtt</code>
+                <strong>✅ File location:</strong> Put <code>captions.vtt</code> right next to this HTML (example: <code>C:\ISweep_wireframe\tests\captions.vtt</code> if you move the HTML there).
+            </div>
+
+            <div class="info">
+                <strong>💻 Serve locally to avoid file:// issues:</strong>
+                <pre style="background: #f5f5f5; padding: 15px; border-radius: 8px; overflow-x: auto;">cd C:\ISweep_wireframe\tests
+python -m http.server 8080
+<-- then open -->
+http://127.0.0.1:8080/isweep_test.html
+</pre>
+                If you must open with <code>file://</code>, enable "Allow access to file URLs" in Chrome extension settings for ISweep.
+            </div>
+
+            <div class="info">
+                <strong>📝 Captions not showing?</strong> The <code>default</code> flag helps, but you may still need to toggle captions (CC) in the player UI.
             </div>
         </div>
 

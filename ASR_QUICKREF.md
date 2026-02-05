@@ -1,41 +1,44 @@
-# Phase 2b: Quick Reference
+# Phase 2b: Quick Reference (Windows-safe)
 
 ## 🚀 Start Here
 
-### 1. Install Whisper (one-time)
-```bash
-pip install faster-whisper
+### 1) Install faster-whisper (one-time)
+From the Python environment you will run the backend with:
+```cmd
+cd C:\ISweep_wireframe\isweep-backend
+python -m pip install faster-whisper
 ```
 
-### 2. Start Backend
-```bash
-cd c:\ISweep_wireframe\isweep-backend
+Optional but recommended (WebM/Opus decoding):
+```cmd
+where ffmpeg
+```
+If `where ffmpeg` prints nothing, decoding WebM/Opus may fail.
+
+### 2) Start Backend
+```cmd
+cd C:\ISweep_wireframe\isweep-backend
 python -m app
 ```
 
-Backend will:
-- ✓ Initialize Whisper model on first request
-- ✓ Listen on http://localhost:8001
-- ✓ Serve API docs at /docs
+Backend:
+- Listens on http://127.0.0.1:8001
+- Docs: http://127.0.0.1:8001/docs
 
-### 3. Test Endpoint
-```bash
-curl -X POST http://localhost:8001/asr/stream \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "test_user",
-    "tab_id": 123,
-    "seq": 1,
-    "mime_type": "audio/webm;codecs=opus",
-    "audio_b64": "GkXfo59UJ+v/3v/7V1V="
-  }'
+### 3) Test Endpoint (Windows curl)
+**Option A: CMD (one line)**
+```cmd
+curl -X POST "http://127.0.0.1:8001/asr/stream" -H "Content-Type: application/json" -d "{\"user_id\":\"test_user\",\"tab_id\":123,\"seq\":1,\"mime_type\":\"audio/webm;codecs=opus\",\"audio_b64\":\"GkXfo59UJ+v/3v/7V1V=\"}"
 ```
 
-Expected response:
+**Option B: PowerShell (one line)**
+```powershell
+curl.exe -X POST "http://127.0.0.1:8001/asr/stream" -H "Content-Type: application/json" -d "{\"user_id\":\"test_user\",\"tab_id\":123,\"seq\":1,\"mime_type\":\"audio/webm;codecs=opus\",\"audio_b64\":\"GkXfo59UJ+v/3v/7V1V=\"}"
+```
+
+Expected response (dummy audio often yields no segments, but must not crash):
 ```json
-{
-  "segments": []
-}
+{ "segments": [] }
 ```
 
 ## 📋 API Reference
@@ -49,7 +52,7 @@ Expected response:
   "tab_id": 456,
   "seq": 1,
   "mime_type": "audio/webm;codecs=opus",
-  "audio_b64": "GkXfo59UJ+v/3v/7V1V="
+  "audio_b64": "..."
 }
 ```
 
@@ -61,13 +64,16 @@ Expected response:
       "text": "Hello world",
       "start_seconds": 0.5,
       "end_seconds": 1.2,
-      "confidence": 0.92
+      "confidence": 0.9,
+      "is_blocked": false,
+      "blocked_word": null,
+      "category": null
     }
   ]
 }
 ```
 
-**Output (buffering):**
+**Output (buffering / no speech):**
 ```json
 {
   "segments": []
@@ -81,47 +87,23 @@ Expected response:
 
 ## ⚙️ Configuration
 
-### Buffer Size
-**File:** `app/asr.py` line 51
-```python
-AudioBuffer(max_chunks=10)  # Default: keep last 10 chunks (~10 seconds)
-```
-
-### Process Frequency
-**File:** `app/asr.py` line 85
-```python
-PROCESS_EVERY_N_CHUNKS = 3  # Run ASR every 3 chunks (~3 seconds)
-```
-
-### Whisper Model
-**File:** `app/asr.py` line 104
-```python
-WhisperModel("base", device="cpu", compute_type="int8")
-```
-
-**Options:**
-- `"tiny"`: 39M (fastest, lower quality)
-- `"base"`: 74M (default, good balance)
-- `"small"`: 244M (better quality, slower)
-- `"medium"`: 769M (excellent quality, very slow)
-
-### Language
-**File:** `app/asr.py` line 145
-```python
-segments, info = model.transcribe(audio_file, language=None)  # Auto-detect
-```
-
-Force language:
-```python
-segments, info = model.transcribe(audio_file, language="en")  # Force English
-```
+Current implementation uses `app/asr_service.py` (no chunk buffering yet). Tweak via env vars before starting the app:
+- `WHISPER_MODEL_SIZE` (default `base`, options tiny|base|small|medium)
+- `WHISPER_DEVICE` (default `cpu`, set `cuda` if GPU available)
+- `WHISPER_COMPUTE_TYPE` (default `int8`, e.g., `float16` on GPU)
 
 ## 🔍 Debugging
 
-### Monitor Logs
-```bash
-# Real-time ASR logs
-python -m app 2>&1 | grep "\[ASR\]"
+### Monitor Logs (PowerShell)
+```powershell
+cd C:\ISweep_wireframe\isweep-backend
+python -m app 2>&1 | Select-String "\[ASR\]"
+```
+
+### Monitor Logs (CMD)
+```cmd
+cd C:\ISweep_wireframe\isweep-backend
+python -m app 2>&1 | findstr "\[ASR\]"
 ```
 
 ### Example Log Output
@@ -142,19 +124,16 @@ python -m app 2>&1 | grep "\[ASR\]"
 
 | Issue | Solution |
 |-------|----------|
-| `ModuleNotFoundError: faster_whisper` | `pip install faster-whisper` |
-| Model download stuck | Check disk space, run in background, wait 30-60s |
-| Transcription garbage | Force language: `language="en"` in asr.py line 145 |
-| Slow performance (>10s) | Use smaller model or GPU (`device="cuda"`) |
-| High memory usage | Reduce `max_chunks` from 10 to 5 |
+| `ModuleNotFoundError: faster_whisper` | Install in the same interpreter you use to run the app:<br>`cd C:\ISweep_wireframe\isweep-backend && python -m pip install faster-whisper` |
+| WebM/Opus decode errors | Check `where ffmpeg`; install ffmpeg if missing |
+| `pytest` not found | `cd C:\ISweep_wireframe\isweep-backend && python -m pytest -q` |
+| Slow or low-quality transcription | Use smaller model for speed (`WHISPER_MODEL_SIZE=tiny`), larger for quality (`small`/`medium`), or set `WHISPER_DEVICE=cuda` if GPU available |
 
 ## 🧪 Test Scenarios
 
-### Scenario 1: Dummy Audio
-```bash
-curl -X POST http://localhost:8001/asr/stream \
-  -H "Content-Type: application/json" \
-  -d '{"user_id":"test","tab_id":1,"seq":1,"mime_type":"audio/webm;codecs=opus","audio_b64":"GkXfo59UJ+v/3v/7V1V="}'
+### Scenario 1: Dummy Audio (CMD one-liner)
+```cmd
+curl -X POST "http://127.0.0.1:8001/asr/stream" -H "Content-Type: application/json" -d "{\"user_id\":\"test\",\"tab_id\":1,\"seq\":1,\"mime_type\":\"audio/webm;codecs=opus\",\"audio_b64\":\"GkXfo59UJ+v/3v/7V1V=\"}"
 ```
 Expected: `{ "segments": [] }` (no crash)
 
@@ -191,9 +170,9 @@ isweep-backend/
 ├── app/
 │   ├── __init__.py
 │   ├── __main__.py
-│   ├── main.py              ← POST /asr/stream route
+│   ├── main.py              ← FastAPI routes, including POST /asr/stream
 │   ├── models.py            ← AudioChunk, TranscriptSegment
-│   ├── asr.py               ← Audio buffering + Whisper (NEW)
+│   ├── asr_service.py       ← Whisper transcription (no buffering)
 │   ├── rules.py
 │   └── database.py
 ├── requirements.txt
@@ -207,7 +186,7 @@ isweep-backend/
 1. **Install:** `pip install faster-whisper`
 2. **Start:** `python -m app`
 3. **Test:** Send dummy chunk or use extension
-4. **Monitor:** `grep "\[ASR\]"` in logs
+4. **Monitor:** Filter `[ASR]` logs with `Select-String` or `findstr`
 5. **Integrate:** Update offscreen.js to POST chunks
 6. **End-to-end test:** Enable ASR on YouTube + verify filtering
 
@@ -237,6 +216,6 @@ isweep-backend/
 
 ---
 
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-02-04
 **Phase:** 2b (Backend ASR streaming)
 **Status:** ✅ Ready to test
