@@ -10,7 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from .models import Preference, Event, DecisionResponse, AudioChunk, ASRStreamResponse
-from . import rules, asr
+from . import rules
+from . import asr_service
 from .database import init_db, get_db
 
 # -------------------------------------------------
@@ -155,58 +156,53 @@ def handle_event(event: Event, db: Session = Depends(get_db)) -> DecisionRespons
         raise HTTPException(status_code=500, detail=f"Decision failed: {str(e)}")
 
 
+
 # -------------------------------------------------
-# ASR (AUTOMATIC SPEECH RECOGNITION) ENDPOINT
+# ASR (AUTOMATIC SPEECH RECOGNITION) ENDPOINT (OpenAI Whisper)
 # -------------------------------------------------
+from fastapi import Body
+from sqlalchemy.orm import Session
+from .models import AudioChunk, ASRStreamResponse, TranscriptSegment
+from typing import List
+
 @app.post("/asr/stream", response_model=ASRStreamResponse)
-def asr_stream(chunk: AudioChunk) -> ASRStreamResponse:
+def handle_asr_stream(
+    chunk: AudioChunk = Body(...),
+    db: Session = Depends(get_db)
+):
     """
-    Stream audio chunks for automatic speech recognition.
-    
-    Accepts audio chunks from the ISweep Chrome extension, buffers them,
-    and returns transcribed segments when ready.
-    
-    Args:
-        chunk: AudioChunk with user_id, tab_id, seq, mime_type, audio_b64
-    
-    Returns:
-        ASRStreamResponse with segments list (empty if ASR not run yet).
-    
-    Process:
-      1. Decode base64 audio data
-      2. Buffer chunk for (user_id, tab_id)
-      3. Every N chunks, run Whisper ASR on accumulated audio
-      4. Return transcribed segments (or empty list if buffering)
+    Receive audio chunk from extension, transcribe it, check for blocked words, return segments
     """
-    try:
-        # Validate input
-        if not chunk.user_id or not chunk.user_id.strip():
-            raise HTTPException(status_code=400, detail="user_id required")
-        if chunk.tab_id <= 0:
-            raise HTTPException(status_code=400, detail="tab_id must be > 0")
-        if not chunk.audio_b64 or not chunk.audio_b64.strip():
-            raise HTTPException(status_code=400, detail="audio_b64 cannot be empty")
-        
-        print(f"[ASR] /asr/stream: user={chunk.user_id} tab={chunk.tab_id} seq={chunk.seq}")
-        
-        # Process audio chunk and get segments (may be None if buffering)
-        segments = asr.process_audio_chunk(
-            user_id=chunk.user_id,
-            tab_id=chunk.tab_id,
-            seq=chunk.seq,
-            audio_b64=chunk.audio_b64,
-            mime_type=chunk.mime_type
+    print(f"[ASR] Received chunk seq={chunk.seq} from user={chunk.user_id}")
+    # Transcribe audio using Whisper
+    segments = asr_service.transcribe_audio_chunk(
+        audio_b64=chunk.audio_b64,
+        user_id=chunk.user_id
+    )
+    print(f"[ASR] Transcribed {len(segments)} segments")
+    # Check each segment for blocked words
+    flagged_segments: List[TranscriptSegment] = []
+    for segment in segments:
+        text = segment["text"]
+        match = rules._find_blocked_word_match(db, chunk.user_id, text)
+        blocked_word = None
+        category = None
+        if match:
+            category, blocked_word, pattern = match
+            print(f"[ASR] 🚨 BLOCKED WORD FOUND: '{blocked_word}' in '{text}'")
+        flagged_segments.append(
+            TranscriptSegment(
+                text=text,
+                start_seconds=segment["start_seconds"],
+                end_seconds=segment["end_seconds"],
+                confidence=0.9,  # Whisper API does not return confidence per segment
+            )
         )
-        
-        # Return response (empty segments if still buffering)
-        if segments is None:
-            return ASRStreamResponse(segments=[])
+        # Attach extra fields for blocked word/category if needed (not in model, but can be added to dict)
+        if blocked_word:
+            flagged_segments[-1].__dict__["blocked_word"] = blocked_word
+            flagged_segments[-1].__dict__["category"] = category
         else:
-            return ASRStreamResponse(segments=segments)
-    
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[ASR] ERROR in /asr/stream: {e}")
-        # Don't crash; return empty segments
-        return ASRStreamResponse(segments=[])
+            flagged_segments[-1].__dict__["blocked_word"] = None
+            flagged_segments[-1].__dict__["category"] = None
+    return ASRStreamResponse(segments=flagged_segments)
