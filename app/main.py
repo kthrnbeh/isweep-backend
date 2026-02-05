@@ -177,7 +177,8 @@ def handle_asr_stream(
     # Transcribe audio using Whisper
     segments = asr_service.transcribe_audio_chunk(
         audio_b64=chunk.audio_b64,
-        user_id=chunk.user_id
+        user_id=chunk.user_id,
+        chunk_start_seconds=chunk.chunk_start_seconds,
     )
     print(f"[ASR] Transcribed {len(segments)} segments")
     # Check each segment for blocked words

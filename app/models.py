@@ -104,6 +104,11 @@ class AudioChunk(BaseModel):
     seq: int = Field(..., description="Sequence number of this chunk")
     mime_type: str = Field(..., description="Audio MIME type (e.g., 'audio/webm;codecs=opus')")
     audio_b64: str = Field(..., description="Base64-encoded audio data")
+    chunk_start_seconds: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="Absolute start time of this chunk on the media timeline (seconds)",
+    )
 
     class Config:
         json_schema_extra = {
@@ -112,7 +117,8 @@ class AudioChunk(BaseModel):
                 "tab_id": 123,
                 "seq": 1,
                 "mime_type": "audio/webm;codecs=opus",
-                "audio_b64": "GkXfo59..."
+                "audio_b64": "GkXfo59...",
+                "chunk_start_seconds": 12.3
             }
         }
 
