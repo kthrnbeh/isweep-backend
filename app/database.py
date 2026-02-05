@@ -67,6 +67,22 @@ def migrate_db():
     existing_columns = {col['name'] for col in inspector.get_columns('preferences')}
     logger.info(f"Existing columns in preferences table: {existing_columns}")
     
+    # Add selected_packs column if missing
+    if 'selected_packs' not in existing_columns:
+        logger.info("Adding selected_packs column to preferences table...")
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE preferences ADD COLUMN selected_packs TEXT DEFAULT '{}'"))
+            conn.commit()
+        logger.info("✅ Added selected_packs column")
+
+    # Add custom_words column if missing
+    if 'custom_words' not in existing_columns:
+        logger.info("Adding custom_words column to preferences table...")
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE preferences ADD COLUMN custom_words TEXT DEFAULT '[]'"))
+            conn.commit()
+        logger.info("✅ Added custom_words column")
+
     # Add caption_offset_ms column if missing
     if 'caption_offset_ms' not in existing_columns:
         logger.info("Adding caption_offset_ms column to preferences table...")
