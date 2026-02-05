@@ -129,6 +129,9 @@ class TranscriptSegment(BaseModel):
     start_seconds: float = Field(..., ge=0, description="Segment start time in seconds")
     end_seconds: float = Field(..., ge=0, description="Segment end time in seconds")
     confidence: float = Field(default=0.9, ge=0.0, le=1.0, description="Confidence score 0-1")
+    is_blocked: bool = Field(default=False, description="True if this segment matched a blocked word")
+    blocked_word: Optional[str] = Field(default=None, description="The blocked word that matched, if any")
+    category: Optional[str] = Field(default=None, description="The preference category that matched, if any")
 
 
 class ASRStreamResponse(BaseModel):

@@ -188,8 +188,10 @@ def handle_asr_stream(
         match = rules._find_blocked_word_match(db, chunk.user_id, text)
         blocked_word = None
         category = None
+        is_blocked = False
         if match:
             category, blocked_word, pattern = match
+            is_blocked = True
             print(f"[ASR] 🚨 BLOCKED WORD FOUND: '{blocked_word}' in '{text}'")
         flagged_segments.append(
             TranscriptSegment(
@@ -197,13 +199,9 @@ def handle_asr_stream(
                 start_seconds=segment["start_seconds"],
                 end_seconds=segment["end_seconds"],
                 confidence=0.9,  # Whisper API does not return confidence per segment
+                is_blocked=is_blocked,
+                blocked_word=blocked_word,
+                category=category,
             )
         )
-        # Attach extra fields for blocked word/category if needed (not in model, but can be added to dict)
-        if blocked_word:
-            flagged_segments[-1].__dict__["blocked_word"] = blocked_word
-            flagged_segments[-1].__dict__["category"] = category
-        else:
-            flagged_segments[-1].__dict__["blocked_word"] = None
-            flagged_segments[-1].__dict__["category"] = None
     return ASRStreamResponse(segments=flagged_segments)
