@@ -274,3 +274,59 @@ class TestDecisionEngine:
             decision = rules.decide(db_session, event)
             assert decision.action == Action.mute, f"Failed for word: {word}"
             assert decision.duration_seconds == 5, f"Wrong duration for word: {word}"
+
+    def test_custom_words_are_included_in_matching(self, db_session):
+        """Test that custom_words are included in blocked word matching."""
+        pref = Preference(
+            user_id="user_custom",
+            category="language",
+            enabled=True,
+            action=Action.mute,
+            duration_seconds=5,
+            blocked_words=[],
+            custom_words=["unwanted"],
+        )
+        rules.save_preference(db_session, pref)
+
+        event = Event(
+            user_id="user_custom",
+            text="This contains unwanted content",
+            content_type=None,
+        )
+        decision = rules.decide(db_session, event)
+
+        assert decision.action == Action.mute
+        assert decision.matched_category == "language"
+        assert decision.matched_term == "unwanted"
+
+    def test_custom_word_word_boundary_no_false_positive(self, db_session):
+        """Test custom word boundaries: 'ass' should not match 'class'."""
+        pref = Preference(
+            user_id="user_custom_boundary",
+            category="language",
+            enabled=True,
+            action=Action.mute,
+            duration_seconds=5,
+            blocked_words=[],
+            custom_words=["ass"],
+        )
+        rules.save_preference(db_session, pref)
+
+        # Should NOT match inside other words
+        event = Event(
+            user_id="user_custom_boundary",
+            text="This is a class assignment",
+            content_type=None,
+        )
+        decision = rules.decide(db_session, event)
+        assert decision.action == Action.none
+
+        # SHOULD match standalone word
+        event2 = Event(
+            user_id="user_custom_boundary",
+            text="That was ass",
+            content_type=None,
+        )
+        decision2 = rules.decide(db_session, event2)
+        assert decision2.action == Action.mute
+        assert decision2.matched_term == "ass"
