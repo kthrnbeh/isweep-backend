@@ -140,9 +140,14 @@
             </div>
 
             <strong>Video with Captions:</strong>
-            <video id="testVideo" controls crossorigin="anonymous">
+            <video id="testVideo" controls playsinline preload="metadata" crossorigin="anonymous" width="720">
+                <!-- Preferred: local video in the same folder -->
+                <source src="sample.mp4" type="video/mp4">
+
+                <!-- If you must use remote video, keep crossorigin and serve via http.server -->
+                <!-- <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4"> -->
+
                 <track kind="captions" src="captions.vtt" srclang="en" label="English" default>
-                <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">
                 Your browser does not support HTML5 video.
             </video>
 
@@ -170,7 +175,7 @@
             <h2>Captions File (captions.vtt)</h2>
             
             <div class="warning">
-                <strong>⚠️ Important:</strong> Place <code>captions.vtt</code> in the SAME folder as this HTML file so the <code>track</code> loads (e.g., keep both in <code>C:\ISweep_wireframe\tests\</code> and open the HTML from there).
+                <strong>⚠️ Important:</strong> Keep this page self-contained: put <code>isweep_test.html</code>, <code>captions.vtt</code>, and (optionally) <code>sample.mp4</code> in the SAME folder (e.g., <code>C:\ISweep_wireframe\tests\</code>) and open the HTML from there.
             </div>
 
             <strong>Create this file with the following content:</strong>
@@ -195,7 +200,7 @@ Here comes another trigger: profanity again
 End of test video.</code></pre>
 
             <div class="success">
-                <strong>✅ File location:</strong> Put <code>captions.vtt</code> right next to this HTML (example: <code>C:\ISweep_wireframe\tests\captions.vtt</code> if you move the HTML there).
+                <strong>✅ File location:</strong> Put <code>captions.vtt</code> right next to this HTML (example: <code>C:\ISweep_wireframe\tests\captions.vtt</code> if you move the HTML there). Add <code>sample.mp4</code> in the same folder to avoid remote video edge cases.
             </div>
 
             <div class="info">
@@ -266,7 +271,7 @@ http://127.0.0.1:8080/isweep_test.html
             <div class="status-box">
                 <strong>If filtering is NOT working:</strong>
                 <ol style="margin-left: 20px; margin-top: 10px;">
-                    <li>✓ Backend running? Test: <code>http://127.0.0.1:8001/health</code></li>
+                    <li>✓ Backend running? Test: <code>http://127.0.0.1:8001/docs</code></li>
                     <li>✓ ISweep enabled? Click icon and check "Active" status</li>
                     <li>✓ Captions enabled? Right-click video → "Show transcript" or CC button</li>
                     <li>✓ Blocked word matches caption? (case-insensitive)</li>
@@ -290,5 +295,27 @@ http://127.0.0.1:8080/isweep_test.html
             <p>ISweep Test Suite v0.1 | Backend: http://127.0.0.1:8001</p>
         </footer>
     </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const video = document.getElementById("testVideo");
+            if (video && video.textTracks) {
+                const tracks = video.textTracks;
+                for (let i = 0; i < tracks.length; i++) {
+                    if (tracks[i].kind === "captions") {
+                        tracks[i].mode = "showing"; // ensure captions display
+                    }
+                }
+            }
+
+            // Quick fetch check to confirm captions.vtt is reachable
+            fetch("captions.vtt")
+                .then((r) => {
+                    if (!r.ok) throw new Error("captions.vtt not found");
+                    console.log("captions.vtt OK");
+                })
+                .catch((err) => console.error("captions.vtt load error:", err));
+        });
+    </script>
 </body>
 </html>
