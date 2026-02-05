@@ -141,8 +141,8 @@
 
             <strong>Video with Captions:</strong>
             <video id="testVideo" controls crossorigin="anonymous" style="width: 100%; max-width: 900px;">
-                <!-- If you keep remote video -->
-                <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
+                <!-- Prefer local test.mp4; JS will fall back to remote if missing -->
+                <source id="videoSource" src="test.mp4" type="video/mp4" />
 
                 <!-- Captions MUST be in same folder as this HTML if using a relative path -->
                 <track
@@ -160,6 +160,8 @@
             <script>
                 const v = document.getElementById("testVideo");
                 const status = document.getElementById("captionStatus");
+                const source = document.getElementById("videoSource");
+                const fallbackSrc = "https://www.w3schools.com/html/mov_bbb.mp4";
 
                 function updateStatus() {
                     const tracks = v.textTracks;
@@ -169,6 +171,17 @@
                     }
                     status.textContent = `Captions: loaded (${tracks.length} track), mode=${tracks[0].mode}`;
                 }
+
+                // Prefer local test.mp4; if missing, fall back to remote sample
+                fetch("test.mp4", { method: "HEAD" })
+                    .then((r) => {
+                        if (!r.ok) throw new Error("local test.mp4 missing");
+                        v.load();
+                    })
+                    .catch(() => {
+                        source.src = fallbackSrc;
+                        v.load();
+                    });
 
                 v.addEventListener("loadedmetadata", updateStatus);
                 window.addEventListener("load", updateStatus);
@@ -198,7 +211,7 @@
             <h2>Captions File (captions.vtt)</h2>
             
             <div class="warning">
-                <strong>⚠️ Important:</strong> Keep this page self-contained: put <code>isweep_test.html</code> and <code>captions.vtt</code> (and optional <code>test.mp4</code>) in the SAME folder (e.g., <code>C:\ISweep_wireframe\tests\</code>) and open the HTML from there.
+                <strong>⚠️ Important:</strong> Keep this page self-contained: put <code>isweep_test.html</code> (this file), <code>captions.vtt</code>, and optional <code>test.mp4</code> in the SAME folder (e.g., <code>C:\ISweep_wireframe\isweep-backend\</code> or a dedicated <code>tests</code> subfolder) and open the HTML from there.
             </div>
 
             <strong>Create this file with the following content:</strong>
@@ -228,7 +241,7 @@ End of test video.</code></pre>
 
             <div class="info">
                 <strong>💻 Serve locally to avoid file:// issues:</strong>
-                <pre style="background: #f5f5f5; padding: 15px; border-radius: 8px; overflow-x: auto;">cd C:\ISweep_wireframe\tests
+                <pre style="background: #f5f5f5; padding: 15px; border-radius: 8px; overflow-x: auto;">cd C:\ISweep_wireframe\isweep-backend
 python -m http.server 8080
 <-- then open -->
 http://127.0.0.1:8080/isweep_test.html
@@ -338,6 +351,23 @@ http://127.0.0.1:8080/isweep_test.html
                     console.log("captions.vtt OK");
                 })
                 .catch((err) => console.error("captions.vtt load error:", err));
+
+            // Backend reachability hint (no-cors)
+            const backendIndicator = document.createElement("div");
+            backendIndicator.style.marginTop = "10px";
+            backendIndicator.style.fontFamily = "sans-serif";
+            backendIndicator.textContent = "Checking backend at http://127.0.0.1:8001/docs ...";
+            document.body.insertBefore(backendIndicator, document.body.firstChild);
+
+            fetch("http://127.0.0.1:8001/docs", { mode: "no-cors" })
+                .then(() => {
+                    backendIndicator.textContent = "Backend reachable: http://127.0.0.1:8001/docs";
+                    backendIndicator.style.color = "#0a7a0a";
+                })
+                .catch(() => {
+                    backendIndicator.textContent = "Backend not reachable at http://127.0.0.1:8001/docs";
+                    backendIndicator.style.color = "#b91c1c";
+                });
         });
     </script>
 </body>
