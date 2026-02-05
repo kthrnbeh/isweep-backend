@@ -140,15 +140,10 @@
             </div>
 
             <strong>Video with Captions:</strong>
-            <video id="testVideo" controls playsinline preload="metadata" crossorigin="anonymous" width="720">
-                <!-- Preferred: local video in the same folder -->
-                <source src="sample.mp4" type="video/mp4">
-
-                <!-- If you must use remote video, keep crossorigin and serve via http.server -->
-                <!-- <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4"> -->
-
+            <video id="testVideo" controls crossorigin="anonymous" width="720">
+                <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">
                 <track kind="captions" src="captions.vtt" srclang="en" label="English" default>
-                Your browser does not support HTML5 video.
+                Sorry, your browser does not support the video tag.
             </video>
 
             <div class="status-box">
@@ -175,7 +170,7 @@
             <h2>Captions File (captions.vtt)</h2>
             
             <div class="warning">
-                <strong>⚠️ Important:</strong> Keep this page self-contained: put <code>isweep_test.html</code>, <code>captions.vtt</code>, and (optionally) <code>sample.mp4</code> in the SAME folder (e.g., <code>C:\ISweep_wireframe\tests\</code>) and open the HTML from there.
+                <strong>⚠️ Important:</strong> Keep this page self-contained: put <code>isweep_test.html</code> and <code>captions.vtt</code> in the SAME folder (e.g., <code>C:\ISweep_wireframe\tests\</code>) and open the HTML from there.
             </div>
 
             <strong>Create this file with the following content:</strong>
@@ -200,7 +195,7 @@ Here comes another trigger: profanity again
 End of test video.</code></pre>
 
             <div class="success">
-                <strong>✅ File location:</strong> Put <code>captions.vtt</code> right next to this HTML (example: <code>C:\ISweep_wireframe\tests\captions.vtt</code> if you move the HTML there). Add <code>sample.mp4</code> in the same folder to avoid remote video edge cases.
+                <strong>✅ File location:</strong> Put <code>captions.vtt</code> right next to this HTML (example: <code>C:\ISweep_wireframe\tests\captions.vtt</code> if you move the HTML there).
             </div>
 
             <div class="info">
