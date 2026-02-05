@@ -1,3 +1,5 @@
+"""Chunk transcription service for ISweep ASR (faster-whisper based)."""
+
 import base64
 import os
 import tempfile
@@ -17,7 +19,16 @@ def transcribe_audio_chunk(
     user_id: str,
     chunk_start_seconds: Optional[float] = None,
 ):
-    """Transcribe a base64 audio chunk, shifting timestamps by chunk_start_seconds if provided."""
+    """Decode a base64 audio chunk, transcribe it with Whisper, and offset timestamps.
+
+    Args:
+        audio_b64: WebM/Opus audio payload encoded as base64.
+        user_id: Identifier for logging/association.
+        chunk_start_seconds: Absolute start time to add to segment timestamps.
+
+    Returns:
+        List of segment dicts with text, start_seconds, end_seconds.
+    """
     temp_path = None
     try:
         audio_bytes = base64.b64decode(audio_b64)
