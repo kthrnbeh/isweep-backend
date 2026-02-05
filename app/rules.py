@@ -208,8 +208,11 @@ def _find_blocked_word_match(db: Session, user_id: str, text: str) -> Optional[t
     for category, pref in prefs.items():
         if not pref.enabled:
             continue
-        
-        for blocked_word in pref.blocked_words:
+
+        # Merge built-in blocked words with user-provided custom words.
+        merged_words = list(pref.blocked_words) + list(pref.custom_words)
+
+        for blocked_word in merged_words:
             if not blocked_word or not blocked_word.strip():
                 continue
             
