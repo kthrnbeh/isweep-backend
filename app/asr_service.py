@@ -16,16 +16,16 @@ def transcribe_audio_chunk(
     audio_b64: str,
     user_id: str,
     chunk_start_seconds: Optional[float] = None,
-) -> List[Dict]:
-    """
-    Transcribe an audio chunk using faster-whisper.
+WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "base")
+WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")          # "cpu" or "cuda"
+WHISPER_COMPUTE = os.getenv("WHISPER_COMPUTE_TYPE", "int8")  # e.g. "int8", "float16"
 
-    NOTE: segment times returned by Whisper are relative to the provided audio.
+model = WhisperModel(WHISPER_MODEL_SIZE, device=WHISPER_DEVICE, compute_type=WHISPER_COMPUTE)
     If you pass chunk_start_seconds, timestamps will be shifted to absolute time.
     """
     temp_path = None
     try:
-        audio_bytes = base64.b64decode(audio_b64)
+    chunk_start_seconds: Optional[float] = None,
 
         with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as temp_audio:
             temp_audio.write(audio_bytes)
