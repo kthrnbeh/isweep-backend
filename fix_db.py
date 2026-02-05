@@ -25,6 +25,18 @@ try:
 except sqlite3.OperationalError as e:
     print(f'custom_words: {e}')
 
+try:
+    cursor.execute("ALTER TABLE preferences ADD COLUMN caption_offset_ms INTEGER DEFAULT 300")
+    print('✓ Added caption_offset_ms column')
+except sqlite3.OperationalError as e:
+    print(f'caption_offset_ms: {e}')
+
 db.commit()
+
+print('\nFinal columns in preferences table:')
+cursor.execute("PRAGMA table_info(preferences)")
+for col in cursor.fetchall():
+    print(f'  {col[1]} ({col[2]})')
+
 db.close()
 print('\n✓ Database updated successfully!')
